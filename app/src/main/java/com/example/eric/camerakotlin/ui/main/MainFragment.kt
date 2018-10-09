@@ -1,16 +1,19 @@
 package com.example.eric.camerakotlin.ui.main
 
+import android.Manifest
 import android.arch.lifecycle.ViewModelProviders
+import android.content.pm.PackageManager
+import android.graphics.ImageFormat
 import android.os.Bundle
 import android.support.v4.app.Fragment
+import android.support.v4.content.PermissionChecker.checkSelfPermission
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import com.example.eric.camerakotlin.R
-import android.Manifest
-import android.content.pm.PackageManager
-import android.graphics.ImageFormat
+import android.widget.FrameLayout
 import android.widget.Toast
+import com.example.eric.camerakotlin.CameraPreview
+import com.example.eric.camerakotlin.R
 
 class MainFragment : Fragment() {
 
@@ -19,10 +22,12 @@ class MainFragment : Fragment() {
 
         private var PERMISSION_REQUEST_CAMERA = 0
         private var PERMISSION_REQUEST_SAVE_PHOTO = 2
+
+        private var TAG: String = "CameraPreview"
     }
 
     private lateinit var viewModel: MainViewModel
-    private lateinit var cameraTextureViewLayout: View
+    private var cameraTextureViewLayout: FrameLayout? = null
 
     private var cameraPreview: CameraPreview?= null
 
@@ -38,18 +43,18 @@ class MainFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         view.findViewById<View>(R.id.capture_button).setOnClickListener(captureButtonCallback)
-        cameraTextureViewLayout = view.findViewById<View>(R.id.camera_textureview)
+        cameraTextureViewLayout = view.findViewById<View>(R.id.camera_textureview) as FrameLayout
 
         showCheckPermission()
     }
 
-    private val captureButtonCallback = View.OnClickListener {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-
+    private val captureButtonCallback = object: View.OnClickListener {
+        override fun onClick(p0: View?) {
+            cameraPreview?.takePicture()
+        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == PERMISSION_REQUEST_CAMERA) {
             if (grantResults.size == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 Toast.makeText(this.context, "Camera permission was granted. Starting preview.", Toast.LENGTH_LONG).show()
@@ -78,18 +83,23 @@ class MainFragment : Fragment() {
     }
 
     private fun showCheckPermission() {
-        if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
-            Toast.makeText(this.context, "Camera permission is available. Starting preview.", Toast.LENGTH_LONG).show()
+        // Check if the Camera permission has been granted
+        if (checkSelfPermission(activity?.applicationContext!!, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(context, "Camera permission is available. Starting preview.", Toast.LENGTH_LONG).show()
             flag3 = true
         } else {
-            requestPermissions(arrayOf(Manifest.permission.CAMERA), PERMISSION_REQUEST_CAMERA)
+            // Permission is missing and must be requested.
+            requestCameraPermission()
         }
 
-        if (shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-            Toast.makeText(this.context, "Camera permission is available. Save Photo.", Toast.LENGTH_LONG).show()
+        // Check if the Camera permission has been granted
+        if (checkSelfPermission(activity?.applicationContext!!, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+            // Permission is already available, start camera preview
+            Toast.makeText(context, "Camera permission is available. Save Photo.", Toast.LENGTH_LONG).show()
             flag4 = true
         } else {
-            requestPermissions(arrayOf(Manifest.permission.CAMERA), PERMISSION_REQUEST_SAVE_PHOTO)
+            // Permission is missing and must be requested.
+            requestSavePhotoPermission()
         }
 
         if (flag3 && flag4){
@@ -97,8 +107,29 @@ class MainFragment : Fragment() {
         }
     }
 
+    private fun requestCameraPermission() {
+        if (shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)) {
+            Toast.makeText(context, "Camera permission is available. Starting preview.", Toast.LENGTH_LONG).show()
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), PERMISSION_REQUEST_CAMERA)
+        } else {
+            Toast.makeText(context, "Permission is not available. Requesting camera permission.", Toast.LENGTH_LONG).show()
+            requestPermissions(arrayOf(Manifest.permission.CAMERA), PERMISSION_REQUEST_CAMERA)
+        }
+    }
+
+    private fun requestSavePhotoPermission() {
+        if (shouldShowRequestPermissionRationale(Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+            Toast.makeText(context, "Camera access is required to save the photo.", Toast.LENGTH_LONG).show()
+            requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), PERMISSION_REQUEST_SAVE_PHOTO)
+        } else {
+            Toast.makeText(context, "Permission is not available. Requesting camera permission.", Toast.LENGTH_LONG).show()
+            requestPermissions(arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), PERMISSION_REQUEST_SAVE_PHOTO)
+        }
+    }
+
     private fun startCamera() {
-        cameraPreview = CameraPreview(this, ImageFormat.JPEG)
+        cameraPreview = CameraPreview(activity, ImageFormat.JPEG)
+        cameraTextureViewLayout?.addView(cameraPreview)
     }
 
 }
